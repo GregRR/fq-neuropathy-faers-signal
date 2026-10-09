@@ -1,0 +1,10 @@
+name: flox-faers
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.10
+  - pandas>=2.0
+  - pyarrow>=14
+  - numpy
+  - scipy
+  - matplotlib

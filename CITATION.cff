@@ -1,0 +1,56 @@
+cff-version: 1.2.0
+message: "If you use this repository, please cite it as below."
+title: "FAERS disproportionality analysis of fluoroquinolone-associated peripheral neuropathy (replication and extension)"
+type: software
+version: 0.1.0
+date-released: 2026-10-09
+license: MIT
+repository-code: "https://github.com/GregRR/fq-neuropathy-faers-signal"
+authors:
+  - family-names: Roe
+    given-names: "Greg R."
+    orcid: "https://orcid.org/0000-0003-3901-4568"
+abstract: >-
+  Independent replication of a published BCPNN disproportionality analysis of
+  fluoroquinolone-associated peripheral neuropathy using public FDA Adverse Event
+  Reporting System (FAERS) quarterly extracts, extended to quarters the original
+  study did not cover. FAERS is spontaneous-report data; results describe reporting
+  patterns, not incidence or causation.
+keywords:
+  - pharmacovigilance
+  - FAERS
+  - fluoroquinolones
+  - peripheral neuropathy
+  - disproportionality analysis
+  - BCPNN
+references:
+  - type: article
+    authors:
+      - {family-names: Shamim, given-names: N.}
+      - {family-names: Doughty, given-names: K.}
+      - {family-names: Chau, given-names: H. T.}
+      - {family-names: Brown, given-names: J.}
+      - {family-names: Baldock, given-names: R.}
+      - {family-names: Au, given-names: N. P. B.}
+    title: "Disproportionality Analysis of Fluoroquinolone-Associated Peripheral Neuropathy in the FAERS Database"
+    journal: "Clinical and Translational Science"
+    year: 2026
+    volume: "19"
+    issue: "e70541"
+    doi: "10.1111/cts.70541"
+  - type: article
+    authors:
+      - {family-names: Morales, given-names: D.}
+      - {family-names: Pacurariu, given-names: A.}
+      - {family-names: Slattery, given-names: J.}
+      - {family-names: Pinheiro, given-names: L.}
+      - {family-names: McGettigan, given-names: P.}
+      - {family-names: Kurz, given-names: X.}
+    title: "Association Between Peripheral Neuropathy and Exposure to Oral Fluoroquinolone or Amoxicillin-Clavulanate Therapy"
+    journal: "JAMA Neurology"
+    year: 2019
+    volume: "76"
+    issue: "7"
+    start: 827
+    end: 833
+    doi: "10.1001/jamaneurol.2019.0887"

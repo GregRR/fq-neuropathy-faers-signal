@@ -1,0 +1,71 @@
+# Editor backup files
+*~
+*.swp
+*.swo
+.#*
+\#*#
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+.TemporaryItems
+.DocumentRevisions-V100
+.VolumeIcon.icns
+Icon?
+
+# iCloud Drive
+# Placeholder stubs for files evicted by Optimize Mac Storage (.name.icloud)
+*.icloud
+# Folders renamed with .nosync are skipped by iCloud sync
+*.nosync
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# R
+.Rhistory
+.RData
+.Rproj.user/
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Logs and temp files
+*.log
+*.tmp
+tmp/
+
+# Build output
+build/
+dist/
+
+# Data (clinical data should never be committed; adjust if a specific
+# de-identified dataset needs tracking)
+data/raw/
+data/interim/
+data/processed/
+*.sas7bdat
+*.xpt
+
+# Project
+papers/
+notes/
