@@ -1,7 +1,5 @@
 # References
 
-Primary sources used so far. Each was read in full from the source document.
-
 ## Benchmark studies
 
 - Shamim N, Doughty K, Chau HT, Brown J, Baldock R, Au NPB. Disproportionality
