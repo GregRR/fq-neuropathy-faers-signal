@@ -5,7 +5,7 @@ Parses DEMO, DRUG and REAC from the FDA quarterly ASCII ZIPs, harmonizes the two
 file layouts (legacy AERS, keyed on ISR; and FAERS, keyed on PRIMARYID), applies the
 case-versioning dedup rule, and writes slim linked tables to data/interim/<pull>/.
 
-Usage (from the Flox folder):
+Usage (from the repository root):
     python3 scripts/01_parse_and_link_core_files.py validation   # 2007q1 .. 2024q3
     python3 scripts/01_parse_and_link_core_files.py extension    # 2024q4 .. 2026q2
 Requires: pandas, pyarrow   (pip install pandas pyarrow)
@@ -38,9 +38,12 @@ Outputs in data/interim/<pull>/:
   01_summary.json        row counts, malformed-line counts, overlap and orphan counts
 `rid` = 'L<ISR>' (legacy) or 'F<PRIMARYID>' (FAERS) so the two ID spaces cannot collide.
 """
-import csv, json, re, sys, zipfile
+import csv, json, re, sys, warnings, zipfile
 from pathlib import Path
 import pandas as pd
+
+# Rows end with a trailing "$"; index_col=False handles it but pandas warns on every file.
+warnings.filterwarnings("ignore", message="Length of header or names does not match")
 
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "data" / "raw"
@@ -89,7 +92,11 @@ def read_member(zf, name, stats, key):
     return df
 
 
-def tidy_demo(df, schema, quarter):
+def tidy_demo(df, schema, quarter, stats):
+    idcol, casecol = ("isr", "case") if schema == "L" else ("primaryid", "caseid")
+    ok = df[idcol].str.fullmatch(r"\d+") & df[casecol].str.fullmatch(r"\d+")
+    stats["demo_rows_dropped_bad_id"][quarter] = int((~ok).sum())
+    df = df[ok]
     out = pd.DataFrame(index=df.index)
     if schema == "L":
         out["primaryid"] = df["isr"]; out["caseid"] = df["case"]
@@ -133,7 +140,8 @@ def main(pull):
     outdir = ROOT / "data" / "interim" / pull
     (outdir / "drug").mkdir(parents=True, exist_ok=True)
     (outdir / "reac").mkdir(parents=True, exist_ok=True)
-    stats = {"pull": pull, "quarters": len(qs), "lines_skipped": {}, "deleted_nonnumeric_rows": {}}
+    stats = {"pull": pull, "quarters": len(qs), "lines_skipped": {}, "demo_rows_dropped_bad_id": {},
+             "deleted_nonnumeric_rows": {}}
 
     # Pass 1: DEMO for every quarter, plus Deleted lists
     demos, deleted = [], set()
@@ -144,7 +152,7 @@ def main(pull):
         with zipfile.ZipFile(zp) as zf:
             mem = members(zf)
             schema = "L" if (y, q) <= (2012, 3) else "F"
-            demos.append(tidy_demo(read_member(zf, mem["demo"], stats, f"{label}:demo"), schema, label))
+            demos.append(tidy_demo(read_member(zf, mem["demo"], stats, f"{label}:demo"), schema, label, stats))
             if "delete" in mem:
                 deleted |= read_deleted(zf, mem["delete"], label, stats)
         print(f"demo {label}: {len(demos[-1]):,} reports", flush=True)

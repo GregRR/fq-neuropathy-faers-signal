@@ -1,4 +1,4 @@
-name: flox-faers
+name: fq-neuropathy-faers
 channels:
   - conda-forge
 dependencies:

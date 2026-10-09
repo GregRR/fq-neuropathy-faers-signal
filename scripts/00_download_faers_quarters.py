@@ -2,7 +2,7 @@
 00_download_faers_quarters.py
 
 Downloads FDA AERS/FAERS quarterly ASCII ZIPs into data/raw/.
-Run from the Flox project folder:  python3 scripts/00_download_faers_quarters.py
+Run from the repository root:  python3 scripts/00_download_faers_quarters.py
 
 Source page: https://fis.fda.gov/extensions/FPD-QDE-FAERS/FPD-QDE-FAERS.html
 URL pattern:
