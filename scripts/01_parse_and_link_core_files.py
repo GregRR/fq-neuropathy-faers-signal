@@ -19,7 +19,8 @@ actual files):
     GNDR_COD renamed SEX from 2014q3; PROD_AI (active ingredient) added 2014q3.
     Each quarterly file holds only the latest version of a case available at
     extract time, so a case can appear in several quarters with rising CASEVERSION.
-  * Deleted/DELETE*.txt (present in recent ZIPs) lists cases FDA removed.
+  * A deleted/ folder (from 2019q1; file names vary by year) lists cases FDA removed.
+    AllDeletedCases.txt in 2019q1 is large and appears cumulative; the union is used.
 
 DEDUP RULE (stated for METHODS_NOTES.md), applied within one pull:
   1. Drop any CASEID listed in a Deleted file of a quarter in the pull.
@@ -49,7 +50,8 @@ ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "data" / "raw"
 PULLS = {"validation": ((2007, 1), (2024, 3)), "extension": ((2024, 4), (2026, 2))}
 AGE_YEARS = {"YR": 1.0, "DEC": 10.0, "MON": 1 / 12, "WK": 1 / 52, "DY": 1 / 365, "HR": 1 / 8760}
-MEMBER = re.compile(r"^(demo|drug|reac|delete)\d{2}q[1-4]\.txt$", re.I)
+# 2018q1 ships its DEMO file as DEMO18Q1_new.txt, so an optional _new suffix is allowed.
+MEMBER = re.compile(r"^(demo|drug|reac)\d{2}q[1-4](?:_new)?\.txt$", re.I)
 
 
 def quarters(start, end):
@@ -64,12 +66,30 @@ def zip_path(y, q):
 
 
 def members(zf):
-    out = {}
+    """Map 'demo'/'drug'/'reac' to the one matching file, and 'delete' to a list.
+    Stops if a table has more than one candidate file, rather than picking silently."""
+    out, found = {}, {}
     for n in zf.namelist():
         m = MEMBER.match(Path(n).name)
         if m:
-            out[m.group(1).lower()] = n
+            found.setdefault(m.group(1).lower(), []).append(n)
+    for key, names in found.items():
+        if len(names) > 1:
+            sys.exit(f"{zf.filename}: more than one {key.upper()} candidate: {names}")
+        out[key] = names[0]
+    for n in zf.namelist():
+        # Deleted-case lists are named differently across years (ADR19Q1DeletedCases.txt,
+        # 21Q1DeletedCases.txt, DELETE24Q3.txt, AllDeletedCases.txt), so match on the folder.
+        parts = n.split("/")
+        if len(parts) > 1 and parts[-2].lower() == "deleted" and n.lower().endswith(".txt"):
+            out.setdefault("delete", []).append(n)
     return out
+
+
+def need(mem, key, zf):
+    if key not in mem:
+        sys.exit(f"No {key.upper()} file found in {zf.filename}. Files in ZIP:\n  " + "\n  ".join(zf.namelist()))
+    return mem[key]
 
 
 def count_lines(zf, name):
@@ -123,14 +143,19 @@ def tidy_demo(df, schema, quarter, stats):
 
 
 def read_deleted(zf, name, quarter, stats):
-    raw = pd.read_csv(zf.open(name), sep="$", dtype=str, header=None, index_col=False,
-                      quoting=csv.QUOTE_NONE, keep_default_na=False)
+    try:
+        raw = pd.read_csv(zf.open(name), sep="$", dtype=str, header=None, index_col=False,
+                          quoting=csv.QUOTE_NONE, keep_default_na=False, encoding="utf-8-sig",
+                          encoding_errors="replace")
+    except pd.errors.EmptyDataError:
+        print(f"  {quarter}: {name} is empty")
+        return set()
     first = raw.iloc[:, 0].str.strip()
     ids = first[first.str.fullmatch(r"\d+")]
     nonnum = len(first) - len(ids)
-    print(f"  {quarter}: Deleted file, {len(ids)} numeric ids, {nonnum} non-numeric rows "
+    print(f"  {quarter}: Deleted file {name}, {len(ids)} numeric ids, {nonnum} non-numeric rows "
           f"(first rows: {list(first.head(3))})")
-    stats["deleted_nonnumeric_rows"][quarter] = nonnum
+    stats["deleted_nonnumeric_rows"][f"{quarter}:{name}"] = nonnum
     return set(ids.astype("int64"))
 
 
@@ -152,15 +177,23 @@ def main(pull):
         with zipfile.ZipFile(zp) as zf:
             mem = members(zf)
             schema = "L" if (y, q) <= (2012, 3) else "F"
-            demos.append(tidy_demo(read_member(zf, mem["demo"], stats, f"{label}:demo"), schema, label, stats))
-            if "delete" in mem:
-                deleted |= read_deleted(zf, mem["delete"], label, stats)
+            demos.append(tidy_demo(read_member(zf, need(mem, "demo", zf), stats, f"{label}:demo"), schema, label, stats))
+            for dn in mem.get("delete", []):
+                deleted |= read_deleted(zf, dn, label, stats)
         print(f"demo {label}: {len(demos[-1]):,} reports", flush=True)
     demo = pd.concat(demos, ignore_index=True)
     del demos
     stats["demo_rows_read"] = len(demo)
 
     # Dedup (rule in module docstring)
+    # Check which ID space the Deleted lists use before relying on them (CASEID is assumed).
+    dids = pd.Series(sorted(deleted), dtype="int64")
+    stats["deleted_ids_total"] = len(dids)
+    stats["deleted_ids_matching_caseid"] = int(dids.isin(demo["caseid"].dropna()).sum())
+    stats["deleted_ids_matching_faers_primaryid"] = int(
+        dids.isin(demo.loc[demo.schema == "F", "primaryid"].dropna()).sum())
+    print(f"Deleted ids: {len(dids):,}; match a CASEID: {stats['deleted_ids_matching_caseid']:,}; "
+          f"match a FAERS PRIMARYID: {stats['deleted_ids_matching_faers_primaryid']:,}")
     n_del = int(demo["caseid"].isin(deleted).sum())
     demo = demo[~demo["caseid"].isin(deleted)]
     stats["reports_removed_by_deleted_lists"] = n_del
@@ -184,7 +217,7 @@ def main(pull):
         keep = keep_by_q.get(label, set())
         with zipfile.ZipFile(zip_path(y, q)) as zf:
             mem = members(zf)
-            dr = read_member(zf, mem["drug"], stats, f"{label}:drug")
+            dr = read_member(zf, need(mem, "drug", zf), stats, f"{label}:drug")
             if schema == "L":
                 dr = dr.rename(columns={"isr": "primaryid"})
             dr["rid"] = schema + dr["primaryid"]
@@ -196,7 +229,7 @@ def main(pull):
             dr["prod_ai"] = dr["prod_ai"].str.strip().str.upper()
             dr.to_parquet(outdir / "drug" / f"{label}.parquet", index=False)
 
-            rc = read_member(zf, mem["reac"], stats, f"{label}:reac")
+            rc = read_member(zf, need(mem, "reac", zf), stats, f"{label}:reac")
             if schema == "L":
                 rc = rc.rename(columns={"isr": "primaryid"})
             rc["rid"] = schema + rc["primaryid"]
