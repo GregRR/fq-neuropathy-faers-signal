@@ -60,12 +60,29 @@ dist/
 
 # Data (clinical data should never be committed; adjust if a specific
 # de-identified dataset needs tracking)
-data/raw/
-data/interim/
-data/processed/
+data/
+ascii/
+ASCII/
+*.zip
+*.7z
+*.parquet
+*.feather
+*.pkl
+*.pickle
+*.rds
+*.sqlite
+*.db
 *.sas7bdat
 *.xpt
 
 # Project
 papers/
 notes/
+
+# AI assistant files and local editor settings
+.claude/
+CLAUDE.md
+AGENTS.md
+.vscode/
+.idea/
+__MACOSX/
