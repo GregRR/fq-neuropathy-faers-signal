@@ -26,7 +26,7 @@ Audit tables are written next to the output so name coverage can be reviewed:
   fq_route_audit.csv          ROUTE values per ingredient (topical vs systemic review)
 
 Output in data/interim/<pull>/:
-  fq_cases.parquet   rid, <ingredient>_psss and <ingredient>_any (bool, role PS/SS or any
+  fq_cases.parquet   rid, quarter, <ingredient>_psss and <ingredient>_any (bool, role PS/SS or any
                      role), has_nonfq_psss, has_nonfq_any, has_other_quinolone
   02_summary.json    case counts under two readings of "sole suspected drug":
       A: at least one FQ as PS/SS and no non-FQ drug as PS/SS (concomitant drugs allowed)
@@ -113,6 +113,7 @@ def process_partition(path, name_map, name_counts, via_ai, stem_counts, route_co
     cols = [f"{i}_{s}" for i in ings for s in ("any", "psss")] + ["has_nonfq_any", "has_nonfq_psss", "has_other_quinolone"]
     cases = df.groupby("rid", sort=False)[cols].max()
     cases = cases[cases[[f"{i}_any" for i in ings]].any(axis=1)].reset_index()
+    cases.insert(1, "quarter", path.stem)
 
     # audit tables
     m = df[df["any_fq"]]
@@ -151,9 +152,12 @@ def main(pull):
     parts = sorted((d / "drug").glob("*.parquet"))
     if not parts:
         sys.exit(f"No drug partitions in {d / 'drug'}. Run script 01 first.")
-    name_map, name_map_tab = build_name_map(parts)
+    # One lookup for both pulls, so the same names are flagged in the validation and extension data.
+    lookup_parts = sorted(q for pl in ("validation", "extension")
+                          for q in (ROOT / "data" / "interim" / pl / "drug").glob("*.parquet"))
+    name_map, name_map_tab = build_name_map(lookup_parts)
     name_map_tab.to_csv(d / "fq_name_map.csv", index=False)
-    print(f"Name lookup from PROD_AI: {len(name_map_tab):,} names", flush=True)
+    print(f"Name lookup from PROD_AI (both pulls): {len(name_map_tab):,} names", flush=True)
     name_counts, via_ai, stem_counts, route_counts, cases = [], [], [], [], []
     for p in parts:
         cases.append(process_partition(p, name_map, name_counts, via_ai, stem_counts, route_counts))
