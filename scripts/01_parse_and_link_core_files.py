@@ -34,7 +34,7 @@ released through 2024q3, as the published paper did.
 
 Outputs in data/interim/<pull>/:
   demo.parquet           one row per retained case
-  drug/<quarter>.parquet rid, drug_seq, role_cod, drugname, prod_ai (upper-cased)
+  drug/<quarter>.parquet rid, drug_seq, role_cod, drugname, prod_ai, route (upper-cased)
   reac/<quarter>.parquet rid, pt (lower-cased)
   01_summary.json        row counts, malformed-line counts, overlap and orphan counts
 `rid` = 'L<ISR>' (legacy) or 'F<PRIMARYID>' (FAERS) so the two ID spaces cannot collide.
@@ -222,11 +222,13 @@ def main(pull):
                 dr = dr.rename(columns={"isr": "primaryid"})
             dr["rid"] = schema + dr["primaryid"]
             dr = dr[dr["rid"].isin(keep)]
-            if "prod_ai" not in dr: dr["prod_ai"] = ""
-            dr = dr[["rid", "drug_seq", "role_cod", "drugname", "prod_ai"]].copy()
+            for c in ("prod_ai", "route"):
+                if c not in dr: dr[c] = ""
+            dr = dr[["rid", "drug_seq", "role_cod", "drugname", "prod_ai", "route"]].copy()
             dr["role_cod"] = dr["role_cod"].str.strip().str.upper()
             dr["drugname"] = dr["drugname"].str.strip().str.upper()
             dr["prod_ai"] = dr["prod_ai"].str.strip().str.upper()
+            dr["route"] = dr["route"].str.strip().str.upper()
             dr.to_parquet(outdir / "drug" / f"{label}.parquet", index=False)
 
             rc = read_member(zf, need(mem, "reac", zf), stats, f"{label}:reac")
