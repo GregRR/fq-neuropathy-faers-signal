@@ -28,7 +28,7 @@ Two variants are written:
 Within a duplicate group the report with the lowest CASEID is kept.
 
 Output in data/interim/<pull>/:
-  fq_cases_dedup.parquet  rid, caseid, the two keep flags and the group size
+  fq_cases_dedup.parquet  rid, quarter, caseid, the two keep flags and the group size
   02b_summary.json        case counts by ingredient before and after, under both sole-suspect
                           readings from script 02, next to Table 1 of the paper
 Duplicate removal is applied to fluoroquinolone cases only; the full-FAERS background used
@@ -72,7 +72,7 @@ def read_indications(pull, rids_by_quarter):
         if idcol not in df or "indi_pt" not in df:
             sys.exit(f"{label}: INDI columns {list(df.columns)} lack {idcol} / indi_pt")
         df["rid"] = schema + df[idcol]
-        df = df[df["rid"].isin(keep)][["rid", "indi_pt"]]
+        df = df[df["rid"].isin(keep)][["rid", "indi_pt"]].assign(quarter=label)
         df["indi_pt"] = df["indi_pt"].str.strip().str.lower()
         frames.append(df)
         print(f"indications {label}: {len(df):,} rows for {len(keep):,} cases", flush=True)
@@ -81,7 +81,7 @@ def read_indications(pull, rids_by_quarter):
 
 def set_key(df, col):
     df = df[df[col] != ""]
-    return df.groupby("rid")[col].agg(lambda s: "|".join(sorted(set(s)))).rename(col + "_key")
+    return df.groupby(["rid", "quarter"])[col].agg(lambda s: "|".join(sorted(set(s)))).rename(col + "_key").reset_index()
 
 
 def summarize(fq, keep):
@@ -107,18 +107,20 @@ def main(pull):
     demo = pd.read_parquet(d / "demo.parquet")
     cols = ["rid", "caseid", "quarter", "schema", "age_years", "sex", "reporter_country",
             "occr_country", "init_fda_dt", "fda_dt"]
-    c = fq.merge(demo[cols], on="rid", how="left")
+    if "quarter" not in fq:
+        sys.exit("fq_cases.parquet has no quarter column. Re-run script 02.")
+    c = fq.merge(demo[cols], on=["rid", "quarter"], how="left", validate="one_to_one")
 
     rids_by_q = {q: set(g) for q, g in c.groupby("quarter")["rid"]}
     reac_frames = []
     for q, keep in rids_by_q.items():
         r = pd.read_parquet(d / "reac" / f"{q}.parquet")
-        reac_frames.append(r[r["rid"].isin(keep)])
+        reac_frames.append(r[r["rid"].isin(keep)].assign(quarter=q))
     reac = pd.concat(reac_frames, ignore_index=True)
     indi = read_indications(pull, rids_by_q)
 
-    c = c.merge(set_key(reac, "pt"), left_on="rid", right_index=True, how="left")
-    c = c.merge(set_key(indi, "indi_pt"), left_on="rid", right_index=True, how="left")
+    c = c.merge(set_key(reac, "pt"), on=["rid", "quarter"], how="left")
+    c = c.merge(set_key(indi, "indi_pt"), on=["rid", "quarter"], how="left")
     c[["pt_key", "indi_pt_key"]] = c[["pt_key", "indi_pt_key"]].fillna("")
 
     occ = c["occr_country"].astype(str).replace({"nan": ""})
@@ -140,7 +142,7 @@ def main(pull):
     keep_b.loc[kn.index[kn.duplicated(keep="first").to_numpy()]] = False
     size = key.assign(_n=1).groupby(list(key.columns), dropna=False)["_n"].transform("size")
 
-    res = c[["rid", "caseid"]].copy()
+    res = c[["rid", "quarter", "caseid"]].copy()
     res["keep_missing_as_value"] = keep_a.to_numpy()
     res["keep_conservative"] = keep_b.to_numpy()
     res["group_size"] = size.to_numpy()
