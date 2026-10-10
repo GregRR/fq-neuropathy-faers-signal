@@ -30,7 +30,8 @@ DEDUP RULE (stated for METHODS_NOTES.md), applied within one pull:
   3. Keep exactly one report per CASEID. Its DRUG and REAC rows are the ones from the
      same quarter file as the retained report.
 Each pull is deduplicated on its own, so the validation window sees only data FDA had
-released through 2024q3, as the published paper did.
+released through 2024q3, as the published paper did. The extension pull then drops every
+CASEID already present in the validation pull, so it holds only cases first seen after 2024q3.
 
 Outputs in data/interim/<pull>/:
   demo.parquet           one row per retained case
@@ -204,6 +205,13 @@ def main(pull):
     demo = (demo.sort_values(["caseid", "_rank", "_v", "_d", "primaryid"])
                 .drop_duplicates("caseid", keep="last")
                 .drop(columns=["_rank", "_v", "_d"]).reset_index(drop=True))
+    if pull == "extension":
+        vfile = ROOT / "data" / "interim" / "validation" / "demo.parquet"
+        if not vfile.exists():
+            sys.exit(f"Missing {vfile}. Run the validation pull first.")
+        seen = set(pd.read_parquet(vfile, columns=["caseid"])["caseid"].dropna())
+        stats["extension_cases_already_in_validation_pull"] = int(demo["caseid"].isin(seen).sum())
+        demo = demo[~demo["caseid"].isin(seen)].reset_index(drop=True)
     stats["cases_retained"] = len(demo)
     demo.to_parquet(outdir / "demo.parquet", index=False)
     print(f"retained {len(demo):,} cases (removed {n_del:,} reports via Deleted lists)")
