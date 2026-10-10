@@ -18,7 +18,8 @@ Match fields (documented choices where the paper is not specific):
   country    occurrence country (OCCR_COUNTRY) when present, else reporter country
              (legacy files have only the reporter country)
   date       INIT_FDA_DT. Legacy reports have no INIT_FDA_DT; their FDA_DT is used instead.
-  drug       the set of fluoroquinolone ingredients reported as primary or secondary suspect
+  drug       the set of fluoroquinolone ingredients reported as primary or secondary suspect, plus the
+             set of every other drug on the report in any role (PROD_AI when present, else the drug name)
   indication the set of INDI_PT terms across all drugs on the report (from the INDI files)
   reaction   the set of REAC PT terms
 Two variants are written:
@@ -79,6 +80,26 @@ def read_indications(pull, rids_by_quarter):
     return pd.concat(frames, ignore_index=True)
 
 
+def other_drug_keys(pull, rids_by_quarter):
+    """Set of non-fluoroquinolone drugs (any role) per report: PROD_AI when present, else the drug name."""
+    lookup_parts = sorted(q for pl in ("validation", "extension")
+                          for q in (ROOT_DIR / "data" / "interim" / pl / "drug").glob("*.parquet"))
+    name_map, _ = s02.build_name_map(lookup_parts)
+    frames = []
+    for q, keep in rids_by_quarter.items():
+        df = pd.read_parquet(ROOT_DIR / "data" / "interim" / pull / "drug" / f"{q}.parquet",
+                             columns=["rid", "drugname", "prod_ai"]).fillna("")
+        df = df[df["rid"].isin(keep)]
+        uniq = df[["drugname", "prod_ai"]].drop_duplicates().reset_index(drop=True)
+        uniq["fq"] = s02.classify_names(uniq, name_map).any(axis=1)
+        uniq["ident"] = uniq["prod_ai"].where(uniq["prod_ai"] != "", uniq["drugname"])
+        df = df.merge(uniq, on=["drugname", "prod_ai"], how="left")
+        df = df[~df["fq"] & (df["ident"] != "")]
+        frames.append(df[["rid", "ident"]].assign(quarter=q))
+    d = pd.concat(frames, ignore_index=True)
+    return d.groupby(["rid", "quarter"])["ident"].agg(lambda s: "|".join(sorted(set(s)))).rename("other_key").reset_index()
+
+
 def set_key(df, col):
     df = df[df[col] != ""]
     return df.groupby(["rid", "quarter"])[col].agg(lambda s: "|".join(sorted(set(s)))).rename(col + "_key").reset_index()
@@ -121,7 +142,8 @@ def main(pull):
 
     c = c.merge(set_key(reac, "pt"), on=["rid", "quarter"], how="left")
     c = c.merge(set_key(indi, "indi_pt"), on=["rid", "quarter"], how="left")
-    c[["pt_key", "indi_pt_key"]] = c[["pt_key", "indi_pt_key"]].fillna("")
+    c = c.merge(other_drug_keys(pull, rids_by_q), on=["rid", "quarter"], how="left")
+    c[["pt_key", "indi_pt_key", "other_key"]] = c[["pt_key", "indi_pt_key", "other_key"]].fillna("")
 
     occ = c["occr_country"].astype(str).replace({"nan": ""})
     rep = c["reporter_country"].astype(str).replace({"nan": ""})
@@ -132,7 +154,8 @@ def main(pull):
     for i in ING:
         drug = drug + np.where(c[f"{i}_psss"], i + "|", "")
     key = pd.DataFrame({"age": c["age_years"].astype("float64").round(1), "sex": sex, "country": country,
-                        "date": date, "drug": drug, "indi": c["indi_pt_key"], "reac": c["pt_key"]})
+                        "date": date, "drug": drug, "other": c["other_key"], "indi": c["indi_pt_key"],
+                        "reac": c["pt_key"]})
     missing = key["age"].isna() | (key["sex"] == "") | (key["country"] == "")
     ks = key.iloc[np.argsort(c["caseid"].to_numpy(), kind="stable")]
     keep_a = pd.Series(True, index=key.index)
