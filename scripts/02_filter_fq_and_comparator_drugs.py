@@ -84,6 +84,8 @@ def build_name_map(parts):
     tab = pd.concat(frames).groupby(["drugname", "ingredient"], as_index=False)["rows"].sum()
     n_ing = tab.groupby("drugname")["ingredient"].transform("nunique")
     keep = tab[(tab["rows"] >= MIN_ROWS) & (n_ing == 1)].sort_values("rows", ascending=False)
+    # Reviewed by hand: MYLOTARG (gemtuzumab) carries a levofloxacin PROD_AI in 5 rows, a source-data error.
+    keep = keep[~keep["drugname"].str.match(r"MYLOTARG")]
     name_map = {ing: set(g["drugname"]) for ing, g in keep.groupby("ingredient")}
     return name_map, keep
 
