@@ -6,8 +6,8 @@ levofloxacin, moxifloxacin, ofloxacin, gemifloxacin, delafloxacin) to peripheral
 neuropathy.
 
 **Status:** the pipeline runs from download to the extension summary (scripts 00 to 07)
-on both data pulls, and the control-drug analysis (script 08) has run on both. The
-fluoroquinolone-versus-other-antibiotics comparison is not yet written. Validation against the published paper is partial: the estimator
+on both data pulls, and the control-drug and comparator-antibiotic analyses (scripts 08
+and 09) have run on both. A comparison against all other systemic antibiotics is deferred. Validation against the published paper is partial: the estimator
 reproduces the paper's Table 1 from the published counts, but counts and Information
 Components rebuilt from raw FAERS files are lower than the published ones (see
 Current results).
@@ -29,8 +29,11 @@ three ways:
    Confidence Propagation Neural Network Information Component (IC), and compare this
    pipeline's per-drug results with the paper's Table 1, splitting any gap into the part
    due to case counts and the part due to the comparison population.
-3. **Control drugs.** Run azithromycin (negative control) and metronidazole (positive
-   control) through the same pipeline.
+3. **Control drugs and comparator antibiotics.** Run azithromycin (negative control) and
+   metronidazole (positive control) through the same pipeline, and compare each
+   fluoroquinolone group with four comparator antibiotics (amoxicillin with or without
+   clavulanate, cephalexin, sulfamethoxazole-trimethoprim, azithromycin) as well as with
+   all of FAERS.
 
 FAERS is spontaneous-reporting data. Per the FDA's own documentation, it cannot be used
 to calculate incidence or to directly compare drug risk. Nothing in this repository
@@ -100,12 +103,24 @@ populations defined above.
 
 - Control drugs, validation pull, rule B, on the all-reports background. Azithromycin
   (negative control): 192 neuropathy reports among 8,885, IC -0.10 (IC025 -0.31), ROR 0.93
-  (0.80 to 1.07). Metronidazole (positive control): 545 among 5,739, IC 2.03 (IC025 1.91),
-  ROR 4.42 (4.04 to 4.82). On the no-concomitant background azithromycin reaches IC 0.22
+  (0.80 to 1.07). Metronidazole (positive control): 545 among 5,732, IC 2.03 (IC025 1.91),
+  ROR 4.42 (4.05 to 4.83). On the no-concomitant background azithromycin reaches IC 0.22
   (IC025 0.01, ROR 1.17), at the edge of the IC025 above 0 threshold and far below IC 2;
-  metronidazole reaches 2.35. Metronidazole's IC falls between levofloxacin (2.51) and
+  metronidazole reaches 2.36. Metronidazole's IC falls between levofloxacin (2.51) and
   moxifloxacin (1.62). Extension pull: azithromycin 10/596, IC -0.23; metronidazole
   78/605, IC 2.65.
+- Comparator antibiotics, validation pull, rule B. Neuropathy share among comparator
+  reports: amoxicillin 1.3% (202/14,977), cephalexin 2.0% (40/1,972),
+  sulfamethoxazole-trimethoprim 2.7% (170/6,397), azithromycin 2.2% (192/8,885), the four
+  pooled 1.9% (604/32,231), against 13.3% for all fluoroquinolones. The ROR of all
+  fluoroquinolones against the pooled comparators is 8.00 (7.34 to 8.71); by single
+  comparator it runs from 5.60 (sulfamethoxazole-trimethoprim) to 11.17 (amoxicillin), so
+  the size of the contrast depends on the comparator by about a factor of two. Every
+  interval lies above 1 except delafloxacin against sulfamethoxazole-trimethoprim (2.20,
+  0.95 to 5.08). Extension pull: ROR 9.85 (7.19 to 13.49) against the pooled comparators;
+  levofloxacin is 7.69 against 7.97 in the validation pull, while the pooled comparator
+  neuropathy share fell from 1.9% to 1.4%. Relative to the comparators the extension
+  levofloxacin result does not drop, unlike its IC against all of FAERS.
 
 Open questions about the gap with the paper are listed in `docs/methods.md`.
 
@@ -124,7 +139,8 @@ scripts/
   05_compute_ror_and_bcpnn.py            ROR and IC with intervals; self-test against Table 1
   06_validate_against_table1.py          compare with the paper; decompose the gap
   07_summarise_extension.py              extension pull; pooled estimates; plots
-  08_comparator_controls.py              azithromycin and metronidazole control drugs
+  08_comparator_controls.py              control drugs and comparator antibiotics: case counts
+  09_fq_vs_comparators.py                fluoroquinolone groups against comparator antibiotics
 docs/
   methods.md
   references.md
@@ -141,6 +157,10 @@ python3 scripts/05_compute_ror_and_bcpnn.py validation
 python3 scripts/05_compute_ror_and_bcpnn.py extension
 python3 scripts/06_validate_against_table1.py
 python3 scripts/07_summarise_extension.py
+python3 scripts/08_comparator_controls.py validation
+python3 scripts/08_comparator_controls.py extension
+python3 scripts/08_comparator_controls.py summary
+python3 scripts/09_fq_vs_comparators.py
 ```
 
 The environment is in `environment.yml`.

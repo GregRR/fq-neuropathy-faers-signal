@@ -1,7 +1,7 @@
 # Methods
 
-Status: scripts 00 to 08 have been run on both pulls. The comparison with other
-antibiotics as a background is not yet written.
+Status: scripts 00 to 09 have been run on both pulls. A comparison against all other
+systemic antibiotics is deferred.
 
 ## Aim
 
@@ -180,6 +180,28 @@ and a PROD_AI lookup as for the fluoroquinolones; the multi-ingredient product P
 metronidazole group. Topical and vaginal products are flagged and handled as in script
 03b.
 
+## Comparator antibiotics (scripts 08 and 09)
+
+Script 08 builds case counts, with the same rules, duplicate removal and event as above,
+for four comparator antibiotics: amoxicillin with or without clavulanate, cephalexin,
+sulfamethoxazole-trimethoprim and azithromycin. Names are matched on generic stems, U.S.
+brand names (drugs.com pages) and the PROD_AI lookup. Clavulanate rows are counted in the
+amoxicillin group so that a product reported as two rows is not treated as having another
+drug, and trimethoprim alone is counted with sulfamethoxazole-trimethoprim. Multi-agent
+Helicobacter pylori products (Pylera, Prevpac, Talicia, Omeclamox-Pak, the Voquezna
+packs) are excluded from every group; their ingredients are from the drugs.com class
+page. `comparator_name_audit.csv` lists every matched name with its PROD_AI for review.
+
+Script 09 compares each fluoroquinolone group with each comparator on its own and with
+the four pooled. For fluoroquinolone group g and comparator c the 2x2 table is: neuropathy
+and other reports for g against neuropathy and other reports for c. ROR (Woolf interval,
+Fisher exact p-value) and IC are computed as in script 05, with n.. = n_g + n_c. The two
+pulls are disjoint, so the pooled rows add their counts. The comparators are chosen
+drugs, not all other antibiotics. Nitrofurantoin, metronidazole and linezolid have reported
+neuropathy associations and are not used as comparators. The neuropathy share differs
+among the comparators (1.3% to 2.7%), so results should be read for each comparator as
+well as pooled.
+
 ## Differences from the published study
 
 - The paper used the FAERS Public Dashboard and WHO Uppsala Monitoring Centre duplicate
@@ -206,4 +228,6 @@ metronidazole group. Topical and vaginal products are flagged and handled as in 
 
 ## Pending
 
-Fluoroquinolone groups against a background of other systemic antibiotics.
+Optional, deferred: fluoroquinolone groups against all other systemic antibacterials
+(WHO ATC group J01 excluding quinolones). It needs a full ingredient list and name
+matching for each substance.

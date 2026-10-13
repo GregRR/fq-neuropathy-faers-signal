@@ -46,8 +46,11 @@
 - FDA file layout documentation shipped inside each quarterly ZIP: `ASC_NTS.pdf`
   (data element definitions; section G maps legacy AERS fields to FAERS fields) and
   `Readme.pdf` (case versioning, the 2012 transition from legacy AERS to FAERS).
-- Brand names for the control drugs: drugs.com pages for azithromycin, metronidazole,
-  topical metronidazole, vaginal metronidazole and Pylera (https://www.drugs.com).
+- Brand names for the control drugs and comparator antibiotics: drugs.com pages for
+  azithromycin, metronidazole, topical metronidazole, vaginal metronidazole, Pylera,
+  amoxicillin, amoxicillin and clavulanate, cephalexin and sulfamethoxazole and trimethoprim,
+  and the drugs.com H. pylori eradication agents class page for multi-agent products
+  (https://www.drugs.com).
   Brand names for the fluoroquinolones: drugs.com quinolone class page; topical products:
   Missouri HealthNet ophthalmic fluoroquinolone review and Nevada Medicaid otic
   fluoroquinolone review.
