@@ -6,9 +6,8 @@ levofloxacin, moxifloxacin, ofloxacin, gemifloxacin, delafloxacin) to peripheral
 neuropathy.
 
 **Status:** the pipeline runs from download to the extension summary (scripts 00 to 07)
-on both data pulls. The control-drug analysis (script 08) is written and its results
-are not yet recorded here. The fluoroquinolone-versus-other-antibiotics comparison is
-not yet written. Validation against the published paper is partial: the estimator
+on both data pulls, and the control-drug analysis (script 08) has run on both. The
+fluoroquinolone-versus-other-antibiotics comparison is not yet written. Validation against the published paper is partial: the estimator
 reproduces the paper's Table 1 from the published counts, but counts and Information
 Components rebuilt from raw FAERS files are lower than the published ones (see
 Current results).
@@ -98,6 +97,15 @@ populations defined above.
   background. The background neuropathy share fell from 2.32% to 1.99%, so IC comparisons
   between pulls should be read alongside the neuropathy share among fluoroquinolone
   reports. Gemifloxacin has no extension reports, and delafloxacin has two.
+
+- Control drugs, validation pull, rule B, on the all-reports background. Azithromycin
+  (negative control): 192 neuropathy reports among 8,885, IC -0.10 (IC025 -0.31), ROR 0.93
+  (0.80 to 1.07). Metronidazole (positive control): 545 among 5,739, IC 2.03 (IC025 1.91),
+  ROR 4.42 (4.04 to 4.82). On the no-concomitant background azithromycin reaches IC 0.22
+  (IC025 0.01, ROR 1.17), at the edge of the IC025 above 0 threshold and far below IC 2;
+  metronidazole reaches 2.35. Metronidazole's IC falls between levofloxacin (2.51) and
+  moxifloxacin (1.62). Extension pull: azithromycin 10/596, IC -0.23; metronidazole
+  78/605, IC 2.65.
 
 Open questions about the gap with the paper are listed in `docs/methods.md`.
 
