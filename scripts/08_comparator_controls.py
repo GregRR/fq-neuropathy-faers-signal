@@ -1,12 +1,16 @@
 """
 08_comparator_controls.py
 
-Negative and positive control drugs for the fluoroquinolone (FQ) peripheral neuropathy (PN) signal, run through the
-same case rules, duplicate removal, event definition and backgrounds as the FQ groups.
+Control drugs and comparator antibiotics for the fluoroquinolone (FQ) peripheral neuropathy (PN) signal, run through
+the same case rules, duplicate removal, event definition and backgrounds as the FQ groups.
 
 Guo et al. 2026 (Int J Antimicrob Agents 67:107993) used azithromycin as a negative control (no signal expected) and
 metronidazole as a positive control (neuropathy is an established adverse effect). Their drug definitions are in a
 supplementary table we do not have, so the definitions below are our own.
+
+The comparator antibiotics (amoxicillin with or without clavulanate, cephalexin, sulfamethoxazole-trimethoprim, and
+azithromycin, which is also the negative control) are the comparison drugs of script 09. Rule A and B counts for them
+are built here and used there.
 
 Usage (from the repository root, after scripts 01, 02, 02b, 03, 04 and 05):
     python3 scripts/08_comparator_controls.py validation
@@ -19,9 +23,18 @@ lookup built over both pulls (needed for legacy files, which have no PROD_AI).
   azithromycin   azithromycin, Zithromax (including Z-Pak and TRI-PAK), Zmax, Azasite
   metronidazole  metronidazole, Flagyl, Likmez, Metro I.V., Protostat, Metryl, MetroCream, MetroGel, MetroLotion,
                  Noritate, Rosadan, Nuvessa, Vandazole
-Brand names: drugs.com pages for azithromycin, metronidazole, and topical and vaginal metronidazole (the
-metronidazole page hides one brand, so the list may be incomplete). The multi-ingredient product Pylera
-(bismuth subcitrate potassium, metronidazole, tetracycline) is excluded from the metronidazole group.
+  amoxicillin    amoxicillin, clavulanate or clavulanic acid, Amoxil, Trimox, Moxilin, Moxatag, Augmentin
+                 (including XR and ES-600), Amoclan. Clavulanate rows are counted in this group so that a product
+                 reported as two rows is not treated as having another drug.
+  cephalexin     cephalexin, cefalexin, Keflex, Biocef, Zartan, Panixine, Daxbia
+  sulfamethoxazole_trimethoprim  sulfamethoxazole, trimethoprim, co-trimoxazole, Bactrim, Septra, Sulfatrim, Bethaprim,
+                 Cotrim, Uroplus, SMZ-TMP. Trimethoprim alone is included.
+Brand names: drugs.com pages for each drug (the metronidazole and amoxicillin pages hide some brands, so those lists
+may be incomplete). The multi-agent Helicobacter pylori products
+Pylera (bismuth subcitrate potassium, metronidazole, tetracycline), Prevpac (amoxicillin, clarithromycin,
+lansoprazole), Talicia (amoxicillin, omeprazole, rifabutin), Omeclamox-Pak (amoxicillin, clarithromycin, omeprazole)
+and the Voquezna packs (amoxicillin with vonoprazan, with or without clarithromycin) are excluded from every group;
+ingredients are from the drugs.com H. pylori eradication agents class page.
 Topical products (ophthalmic azithromycin; topical and vaginal metronidazole) are flagged by route or name, and the
 scenario 'excl_topical_only' drops cases whose suspect rows are all topical.
 
@@ -39,7 +52,8 @@ Output in data/interim/<pull>/:
   comparator_cases.parquet   one row per case and group: rid, quarter, caseid, group, rule flags, topical-only,
                              pn24, duplicate-removal flags
   comparator_signals.csv     counts, ROR and IC for each group, rule, duplicate variant, topical scenario, background
-  comparator_name_audit.csv  every DRUGNAME matched to each group, with row counts
+  comparator_name_audit.csv  every DRUGNAME and PROD_AI pair matched to each group, with row counts (review for
+                             combination products that should not be in a group)
   comparator_name_map.csv    names added from the PROD_AI lookup
 Output of 'summary':
   results/tables/comparator_controls.csv   rule B, variant 1, all cases, PN24: controls beside the FQ groups, both pulls
@@ -75,15 +89,20 @@ GROUPS = {
     "azithromycin": r"\bAZITHROMYCIN|\bZITHROMAX\b|\bZ-?PAK\b|\bZMAX\b|\bAZASITE\b",
     "metronidazole": r"\bMETRONIDAZOL|\bFLAGYL\b|\bLIKMEZ\b|\bMETRO I\.?V\b|\bPROTOSTAT\b|\bMETRYL\b|\bMETROCREAM\b|"
                      r"\bMETROGEL\b|\bMETROLOTION\b|\bNORITATE\b|\bROSADAN\b|\bNUVESSA\b|\bVANDAZOLE\b",
+    "amoxicillin": r"\bAMOXICILLIN|CLAVULAN|\bAMOXIL\b|\bTRIMOX\b|\bMOXILIN\b|\bMOXATAG\b|\bAUGMENTIN\b|\bAMOCLAN\b",
+    "cephalexin": r"\bCEPHALEXIN|\bCEFALEXIN|\bKEFLEX\b|\bBIOCEF\b|\bZARTAN\b|\bPANIXINE\b|\bDAXBIA\b",
+    "sulfamethoxazole_trimethoprim": r"\bSULFAMETHOXAZOL|\bTRIMETHOPRIM|\bCO-?TRIMOX|\bBACTRIM|\bSEPTRA\b|\bSULFATRIM|"
+                                     r"\bBETHAPRIM|\bCOTRIM\b|\bUROPLUS|\bSMZ[- ]?TMP",
 }
 RX = {g: re.compile(v) for g, v in GROUPS.items()}
-COMBO = re.compile(r"\bPYLERA\b")
+COMBO = re.compile(r"\bPYLERA\b|\bPREVPAC\b|\bTALICIA\b|\bOMECLAMOX|\bVOQUEZNA\b")
 MIN_ROWS = 3
 TOPICAL_ROUTE = set(s03b.TOPICAL_ROUTE) | {"VAGINAL"}
 TOPICAL_NAME = re.compile(r"OPHTH|\bOTIC\b|\bEYES?\b|\bEARS?\b|DROP|OINTMENT|CREAM|\bGEL\b|LOTION|VAGINAL|\bTOPICAL\b|"
                           r"\bAZASITE\b|\bMETROCREAM\b|\bMETROGEL\b|\bMETROLOTION\b|\bNORITATE\b|\bROSADAN\b|"
                           r"\bNUVESSA\b|\bVANDAZOLE\b")
 RULES = {"A": "A_no_other_suspect", "B": "B_no_other_drug_any_role"}
+CONTROLS = ("azithromycin", "metronidazole")
 S24 = set(s03.PN24)
 
 
@@ -135,7 +154,7 @@ def process_partition(path, name_map, name_counts):
         df[f"{g}_oth_any"] = ~df[g]
         df[f"{g}_oth_ps"] = ~df[g] & ps
         cols += [f"{g}_any", f"{g}_psss", f"{g}_nt", f"{g}_oth_any", f"{g}_oth_ps"]
-        name_counts.append(df[df[g]].groupby("drugname").size().rename("rows").reset_index().assign(group=g))
+        name_counts.append(df[df[g]].groupby(["drugname", "prod_ai"]).size().rename("rows").reset_index().assign(group=g))
     cases = df.groupby("rid", sort=False)[cols].max()
     cases = cases[cases[[f"{g}_any" for g in GROUPS]].any(axis=1)].reset_index()
     cases.insert(1, "quarter", path.stem)
@@ -250,7 +269,7 @@ def main(pull):
         others.append(o)
         print(f"{p.stem}: " + ", ".join(f"{g} {int(c[f'{g}_any'].sum()):,}" for g in GROUPS), flush=True)
     cases, others = pd.concat(cases, ignore_index=True), pd.concat(others, ignore_index=True)
-    pd.concat(name_counts).groupby(["group", "drugname"], as_index=False)["rows"].sum().sort_values(
+    pd.concat(name_counts).groupby(["group", "drugname", "prod_ai"], as_index=False)["rows"].sum().sort_values(
         ["group", "rows"], ascending=False).to_csv(d / "comparator_name_audit.csv", index=False)
 
     long = build_cases(pull, cases, others)
@@ -295,13 +314,13 @@ def summary():
     tdir.mkdir(parents=True, exist_ok=True)
     t[keep].to_csv(tdir / "comparator_controls.csv", index=False, float_format="%.4f")
 
-    order = ["azithromycin", "metronidazole", *FQ_SHOW]
+    order = [*CONTROLS, *FQ_SHOW]
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.5), sharey=True)
     y0 = np.arange(len(order))[::-1].astype(float)
     for ax, bg in zip(axes, ("all", "no_concomitant")):
         s = t[(t["pull"] == "validation") & (t["background"] == bg)].set_index("group").reindex(order)
         ok = s["ic"].notna().to_numpy()
-        col = ["tab:green" if g in GROUPS else "tab:blue" for g in order]
+        col = ["tab:green" if g in CONTROLS else "tab:blue" for g in order]
         for i in np.flatnonzero(ok):
             ax.errorbar(s["ic"].iloc[i], y0[i], xerr=[[s["ic"].iloc[i] - s["ic025"].iloc[i]], [s["ic975"].iloc[i] - s["ic"].iloc[i]]],
                         fmt="o", color=col[i], ms=5, lw=1.2, capsize=2)
