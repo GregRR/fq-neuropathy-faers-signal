@@ -5,7 +5,13 @@ disproportionality analysis linking fluoroquinolone antibiotics (ciprofloxacin,
 levofloxacin, moxifloxacin, ofloxacin, gemifloxacin, delafloxacin) to peripheral
 neuropathy.
 
-**Status: planning complete, pipeline build not yet started.**
+**Status:** the pipeline runs from download to the extension summary (scripts 00 to 07)
+on both data pulls. The control-drug analysis (script 08) is written and its results
+are not yet recorded here. The fluoroquinolone-versus-other-antibiotics comparison is
+not yet written. Validation against the published paper is partial: the estimator
+reproduces the paper's Table 1 from the published counts, but counts and Information
+Components rebuilt from raw FAERS files are lower than the published ones (see
+Current results).
 
 ## What this is, and isn't
 
@@ -14,16 +20,18 @@ study (Shamim et al., *Clinical and Translational Science*, 2026) already applie
 Bayesian disproportionality analysis to FAERS data through 2024 Q3 and found a
 significant signal between several fluoroquinolones and peripheral neuropathy-related
 adverse event reports. The goal here is to demonstrate that method end to end, on real
-public data, with fully documented and reproducible code, and to extend the published
-work in two specific, honest ways:
+public data, with documented and reproducible code, and to extend the published work in
+three ways:
 
-1. **Time extension.** Re-run the identical pipeline on FAERS data released after the
-   published paper's 2024 Q3 cutoff, to see whether the signal holds, strengthens, or
-   shifts.
-2. **Method cross-check.** Compute both a classical Reporting Odds Ratio (ROR) and a
-   from-scratch Bayesian Confidence Propagation Neural Network (BCPNN) implementation
-   (the method the benchmark paper actually used), then validate this pipeline's
-   per-drug results directly against the paper's published numbers.
+1. **Time extension.** Run the identical pipeline on FAERS data released after the
+   paper's 2024 Q3 cutoff (2024 Q4 to 2026 Q2, new cases only), to see whether the
+   signal holds, strengthens, or shifts.
+2. **Method cross-check.** Compute a Reporting Odds Ratio (ROR) and a Bayesian
+   Confidence Propagation Neural Network Information Component (IC), and compare this
+   pipeline's per-drug results with the paper's Table 1, splitting any gap into the part
+   due to case counts and the part due to the comparison population.
+3. **Control drugs.** Run azithromycin (negative control) and metronidazole (positive
+   control) through the same pipeline.
 
 FAERS is spontaneous-reporting data. Per the FDA's own documentation, it cannot be used
 to calculate incidence or to directly compare drug risk. Nothing in this repository
@@ -35,7 +43,99 @@ FAERS ASCII quarterly extract files, public, free, no application or institution
 affiliation required. Available from the FDA at
 https://www.fda.gov/drugs/fda-adverse-event-reporting-system-faers/fda-adverse-event-reporting-system-faers-ascii-files.
 
-FAERS data is U.S. government public domain. No separate data license applies.
+FAERS data is U.S. government public domain. No separate data license applies. Raw and
+intermediate data are not stored in this repository.
+
+## Method
+
+Details are in `docs/methods.md`. In brief:
+
+- Cases: a fluoroquinolone as primary or secondary suspect, under two readings of "sole
+  suspected drug" (rule A: no other suspect drug; rule B: no other drug in any role), with
+  the paper's duplicate-removal rule applied in two variants.
+- Event: 24 MedDRA preferred terms for peripheral neuropathy named in the paper's Figure 2
+  (PN24), and the seven terms the paper retained (PN7).
+- Comparison populations: all reports, reports without any fluoroquinolone, reports
+  without any concomitant drug, and all reports with the event fraction fixed at the value
+  implied by the paper's Table 1 (1.826%). The paper says only "the full FAERS dataset".
+- Statistics: ROR with a Woolf interval and a Fisher exact p-value; IC from the Dirichlet
+  posterior of Norén et al. (2006) with 2.5 and 97.5 percentile Monte Carlo limits. Two
+  signal rules are reported side by side: IC025 above 0, and the paper's stated rule of
+  IC above 2 with IC025 above 0.
+- Control drugs: azithromycin and metronidazole, with the same case rules, duplicate
+  removal, event and backgrounds.
+
+## Current results
+
+Validation pull (2007 Q1 to 2024 Q3), rule B, duplicate variant 1, all cases, PN24 event.
+IC is the point estimate. "All reports" and "no concomitant" are the two comparison
+populations defined above.
+
+| Group | Paper (cases/reports, IC) | Here (cases/reports) | IC, all reports | IC, no concomitant |
+|---|---|---|---|---|
+| All fluoroquinolones | 5,588/37,778, 3.02 | 5,480/41,353 | 2.51 | 2.84 |
+| Ciprofloxacin | 2,291/14,434, 3.12 | 2,310/15,732 | 2.66 | 2.99 |
+| Levofloxacin | 1,942/13,598, 2.97 | 1,918/14,514 | 2.51 | 2.83 |
+| Moxifloxacin | 642/7,439, 2.24 | 631/8,836 | 1.62 | 1.94 |
+| Combination | 652/1,505, 4.54 | 569/1,452 | 4.06 | 4.38 |
+| Ofloxacin | 46/588, 2.05 | 38/592 | 1.43 | 1.75 |
+| Gemifloxacin | 11/142, 1.89 | 8/121 | 1.36 | 1.63 |
+| Delafloxacin | 4/72, 1.31 | 6/106 | 1.13 | 1.40 |
+
+- The IC calculation reproduces every IC in the paper's Table 1 to within 0.01 when given
+  the published counts and a background event fraction of 1.826%.
+- The PN24 share of all reports here is 2.32%, against 1.83% implied by the paper. That
+  difference alone lowers every IC by 0.35. Reports without concomitant drugs have a
+  PN24 share of 1.85%, close to the implied value.
+- The remaining gap comes from case counts: here a smaller share of fluoroquinolone
+  reports carries a neuropathy term (13.3% against 14.8% for all fluoroquinolones). The
+  difference is largest for moxifloxacin (8,836 reports here, 7,439 in the paper).
+- Group ordering matches the paper. Every group except delafloxacin has IC025 above 0 on
+  the all-reports background. Moxifloxacin and ofloxacin fall below the paper's IC above 2
+  cut-off. No source for that cut-off was found in the papers it cites.
+- Extension pull (2024 Q4 to 2026 Q2): 304 neuropathy reports among 2,463 all-fluoroquinolone
+  reports (12.3%), IC 2.62 against 2.51 in the validation pull, on the all-reports
+  background. The background neuropathy share fell from 2.32% to 1.99%, so IC comparisons
+  between pulls should be read alongside the neuropathy share among fluoroquinolone
+  reports. Gemifloxacin has no extension reports, and delafloxacin has two.
+
+Open questions about the gap with the paper are listed in `docs/methods.md`.
+
+## Repository structure
+
+```
+scripts/
+  00_download_faers_quarters.py          download the quarterly ZIPs
+  00b_audit_faers_zips.py                check the downloads
+  01_parse_and_link_core_files.py        parse DEMO, DRUG, REAC; remove repeated case versions
+  02_filter_fq_and_comparator_drugs.py   flag the six fluoroquinolones; case rules A and B
+  02b_deduplicate_fq_cases.py            paper-style duplicate removal
+  03_filter_neuropathy_reactions.py      flag neuropathy terms; count them in all reports
+  03b_flag_topical_cases.py              flag topical-only cases (sensitivity)
+  04_build_contingency_tables.py         2x2 counts under four comparison populations
+  05_compute_ror_and_bcpnn.py            ROR and IC with intervals; self-test against Table 1
+  06_validate_against_table1.py          compare with the paper; decompose the gap
+  07_summarise_extension.py              extension pull; pooled estimates; plots
+  08_comparator_controls.py              azithromycin and metronidazole control drugs
+docs/
+  methods.md
+  references.md
+results/
+  tables/                                aggregate counts and estimates
+  figures/
+```
+
+Each script's docstring gives its usage, inputs and outputs. Run from the repository
+root, validation pull first, then the extension pull, for example:
+
+```
+python3 scripts/05_compute_ror_and_bcpnn.py validation
+python3 scripts/05_compute_ror_and_bcpnn.py extension
+python3 scripts/06_validate_against_table1.py
+python3 scripts/07_summarise_extension.py
+```
+
+The environment is in `environment.yml`.
 
 ## Benchmark papers
 
@@ -46,33 +146,7 @@ FAERS data is U.S. government public domain. No separate data license applies.
   Between Peripheral Neuropathy and Exposure to Oral Fluoroquinolone or
   Amoxicillin-Clavulanate Therapy." *JAMA Neurol.* 2019;76(7):827-833.
 
-## Method
-
-- Reporting Odds Ratio (ROR), computed from drug-event 2x2 contingency tables.
-- Bayesian Confidence Propagation Neural Network (BCPNN), producing an Information
-  Component (IC) per drug-event pair, following Bate et al. (1998) and Norén et al.
-  (2006).
-- Adverse event definition: seven MedDRA preferred terms confirmed from the benchmark
-  paper (paraesthesia, peripheral neuropathy, hypoaesthesia, burning sensation,
-  sensory disturbance, small fiber neuropathy, hyperaesthesia).
-- Comparator drug set: a primary four-drug comparator (amoxicillin/amoxicillin-
-  clavulanate, cephalexin, azithromycin, trimethoprim-sulfamethoxazole), with an
-  all-other-antibiotics comparison as a secondary sensitivity check.
-
-## Repository structure (planned)
-
-```
-00_download_faers_quarters.py
-01_parse_and_link_core_files.py
-02_filter_fq_and_comparator_drugs.py
-03_filter_neuropathy_reactions.py
-04_build_contingency_tables.py
-05_compute_ror_and_bcpnn.py
-06_validate_against_published_paper.py
-07_extend_to_recent_quarters.py
-08_sensitivity_vs_all_antibiotics.py
-METHODS_NOTES.md
-```
+Full list in `docs/references.md`.
 
 ## Companion project
 
