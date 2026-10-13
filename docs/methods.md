@@ -1,8 +1,7 @@
 # Methods
 
-Status: scripts 00 to 07 have been run on both pulls. Script 08 (control drugs) is
-written and awaiting its first full run. The comparison with other antibiotics as a
-background is not yet written.
+Status: scripts 00 to 08 have been run on both pulls. The comparison with other
+antibiotics as a background is not yet written.
 
 ## Aim
 
@@ -207,5 +206,4 @@ metronidazole group. Topical and vaginal products are flagged and handled as in 
 
 ## Pending
 
-Fluoroquinolone groups against a background of other systemic antibiotics, and recording
-the control-drug results.
+Fluoroquinolone groups against a background of other systemic antibiotics.
